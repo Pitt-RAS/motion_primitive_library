@@ -8,7 +8,16 @@
  */
 #pragma once
 #include <motion_primitive_library/common/data_type.h>
+
+// BAD HEADERS
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic ignored "-Wignored-attributes"
+#pragma GCC diagnostic ignored "-Wmisleading-indentation"
 #include <unsupported/Eigen/Polynomials>
+#pragma GCC diagnostic pop
+// END BAD HEADERS
+
 #include <iostream>
 
 ///Quadratic equation: \f$b*t^2+c*t+d = 0\f$

@@ -7,8 +7,16 @@
 
 #include <stdio.h>
 #include <vector>
+
+// BAD HEADERS
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic ignored "-Wignored-attributes"
+#pragma GCC diagnostic ignored "-Wmisleading-indentation"
 #include <Eigen/Geometry>
 #include <Eigen/StdVector>
+#pragma GCC diagnostic pop
+// END BAD HEADERS
 
 #ifndef BASIC_COLOR_H
 #define BASIC_COLOR_H

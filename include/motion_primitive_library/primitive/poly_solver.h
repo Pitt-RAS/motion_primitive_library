@@ -8,9 +8,18 @@
 #include <stdio.h>
 #include <iostream>
 #include <memory>
+
+// BAD HEADERS
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic ignored "-Wignored-attributes"
+#pragma GCC diagnostic ignored "-Wmisleading-indentation"
 #include <Eigen/Core>
 #include <Eigen/StdVector>
 #include <Eigen/LU>
+#pragma GCC diagnostic pop
+// END BAD HEADERS
+
 #include <motion_primitive_library/primitive/poly_traj.h>
 
 /**
