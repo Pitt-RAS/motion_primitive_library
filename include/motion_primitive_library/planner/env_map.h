@@ -108,9 +108,14 @@ namespace MPL {
 
       for(unsigned int i = 0; i < this->U_.size(); i++) {
         Primitive<Dim> pr(curr, this->U_[i], this->dt_);
+
+        // FIXME SHOULD THIS BE HERE?
+        //if (!is_free(pr)) continue;
+
         Waypoint<Dim> tn = pr.evaluate(this->dt_);
         if(tn == curr) 
           continue;
+
         if(pr.valid_vel(this->v_max_) && 
            pr.valid_acc(this->a_max_) && 
            pr.valid_jrk(this->j_max_)) {

@@ -14,7 +14,7 @@
 namespace MPL
 {
   ///Key for hashmap
-  typedef std::string Key;
+  typedef std::array<int, 12> Key;
 
   ///Heap element comparison
   template <class state>

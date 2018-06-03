@@ -39,10 +39,22 @@ Primitive1D::Primitive1D(decimal_t p1, decimal_t p2, decimal_t t) {
 
 Vec4f Primitive1D::evaluate(decimal_t t) const {
   Vec4f vec;
-  vec << c(0)/120*t*t*t*t*t+c(1)/24*t*t*t*t+c(2)/6*t*t*t+c(3)/2*t*t+c(4)*t+c(5),
-      c(0)/24*t*t*t*t+c(1)/6*t*t*t+c(2)/2*t*t+c(3)*t+c(4),
-      c(0)/6*t*t*t+c(1)/2*t*t+c(2)*t+c(3),
-      c(0)/2*t*t+c(1)*t+c(2);
+  if (t == 0) {
+    vec << c(5), c(4), c(3), c(2);
+    return vec;
+  }
+
+  decimal_t t2 = t*t * (1/2.);
+  decimal_t t3 = t*t2 * (1/3.);
+  decimal_t t4 = t*t3 * (1/4.);
+  decimal_t t5 = t*t4 * (1/5.);
+
+  decimal_t p = c(0)*t5 + c(1)*t4 + c(2)*t3 + c(3)*t2 + c(4)*t + c(5);
+  decimal_t v = c(0)*t4 + c(1)*t3 + c(2)*t2 + c(3)*t  + c(4);
+  decimal_t a = c(0)*t3 + c(1)*t2 + c(2)*t  + c(3);
+  decimal_t j = c(0)*t2 + c(1)*t  + c(2);
+
+  vec << p, v, a, j;
 
   return vec;
 }
@@ -94,14 +106,20 @@ Primitive1D::Primitive1D(Vec4f state, decimal_t u) {
 }
 
 
-std::vector<decimal_t> Primitive1D::extrema_vel(decimal_t t) const {
-  std::vector<decimal_t> ts = solve(0, c(0)/6, c(1)/2, c(2), c(3));
+int Primitive1D::extrema_vel(decimal_t t, std::array<decimal_t, 4>& out) const {
+  std::array<decimal_t, 4> ts;
+  int roots = solve_fast(0, c(0)/6, c(1)/2, c(2), c(3), ts);
+
   std::vector<decimal_t> ts_max;
-  for(const auto &it: ts) {
-    if(it > 0 && it < t)
-      ts_max.push_back(it);
+  int j = 0;
+  for(int i = 0; i < roots; i++) {
+    decimal_t it = ts[i];
+    if(it > 0 && it < t) {
+      out[j] = it;
+      j++;
+    }
   }
-  return ts_max;
+  return j;
 }
 
 std::vector<decimal_t> Primitive1D::extrema_acc(decimal_t t) const {
@@ -201,12 +219,14 @@ decimal_t Primitive<Dim>::max_vel(int k) const {
   if(k >= Dim)
     return 0;
 
-  std::vector<decimal_t> ts = prs_[k].extrema_vel(t_);
+  std::array<decimal_t, 4> ts;
+  int n_ts = prs_[k].extrema_vel(t_, ts);
   Vec4f p1 = prs_[k].evaluate(0);
   Vec4f p2 = prs_[k].evaluate(t_);
   decimal_t max_v = std::max(fabs(p1(1)), fabs(p2(1)));
 
-  for(const auto &it: ts) {
+  for(int i = 0; i < n_ts; i++) {
+    decimal_t it = ts[i];
     if(it > 0 && it < t_){
       Vec4f p3 = prs_[k].evaluate(it);
       if(fabs(p3(1)) > max_v)

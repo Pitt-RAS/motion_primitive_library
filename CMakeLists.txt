@@ -45,7 +45,8 @@ ENDIF()
 
 add_library(primitive src/primitive/primitive.cpp
   src/primitive/trajectory.cpp
-  src/primitive/math.cpp)
+  src/primitive/math.cpp
+  src/primitive/rpoly.cpp)
 
 add_library(poly_solver src/primitive/poly_solver.cpp
   src/primitive/poly_traj.cpp)

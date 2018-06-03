@@ -131,7 +131,7 @@ class Primitive1D {
     /**
      * @brief Return extrema of velocity, velocities at both ends (0, t) are considered
      */
-    std::vector<decimal_t> extrema_vel(decimal_t t) const;
+    int extrema_vel(decimal_t t, std::array<decimal_t, 4>& out) const;
     /**
      * @brief Return extrema of acceleration, accelerations at both ends (0, t) are considered
      */

@@ -130,7 +130,7 @@ vec_E<Primitive<Dim>> MPBaseUtil<Dim>::getPrimitivesToGoal() const {
   if(ss_ptr_->best_child_.empty())
     return prs;
 
-  std::unordered_map<Key, bool> added;
+  std::unordered_map<std::pair<Key, Key>, bool> added;
 
   auto currNode_ptr = ss_ptr_->best_child_.back();
   std::queue<StatePtr<Dim>> q;
@@ -141,7 +141,7 @@ vec_E<Primitive<Dim>> MPBaseUtil<Dim>::getPrimitivesToGoal() const {
       currNode_ptr = q.front(); q.pop();
       for(unsigned int j = 0; j < currNode_ptr->pred_hashkey.size(); j++) {
         Key pred_key = currNode_ptr->pred_hashkey[j];
-        Key key_pair = currNode_ptr->hashkey + pred_key;
+        std::pair<Key, Key> key_pair = std::make_pair(currNode_ptr->hashkey, pred_key);
         if(added.count(key_pair) == 1 || std::isinf(currNode_ptr->pred_action_cost[j])) // skip the pred if the cost is inf
           continue;
         q.push(ss_ptr_->hm_[pred_key]);

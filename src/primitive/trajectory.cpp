@@ -179,7 +179,13 @@ bool Trajectory<Dim>::scale_down(decimal_t mv, decimal_t ri, decimal_t rf) {
   for(int id = 0; id < (int)segs.size(); id++) {
     for(int i = 0; i < 3; i++) {
       if(segs[id].max_vel(i) > mv) {
-        std::vector<decimal_t> ts = segs[id].traj(i).extrema_vel(segs[id].t());
+        std::array<decimal_t, 4> ts_arr;
+        int n_ts = segs[id].traj(i).extrema_vel(segs[id].t(), ts_arr);
+
+        std::vector<decimal_t> ts;
+        for (int i = 0; i < n_ts; i++)
+            ts.push_back(ts_arr[i]);
+
         if(id != 0)
           ts.push_back(0);
         ts.push_back(segs[id].t());

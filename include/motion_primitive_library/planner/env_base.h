@@ -16,9 +16,10 @@ namespace MPL {
 /**
  * @brief Key for node
  *
- * We use string as the Key for indexing, by default the Key refers to 'pos-vel-acc-...'
+ * We use array of ints as the Key for indexing, by default the Key is just the state
+ * indices packed in here
  */
-typedef std::string Key; 
+typedef std::array<int, 12> Key;
 
 /**
  * @brief Base environment class
@@ -85,17 +86,24 @@ class env_base
         decimal_t f = 2880*dp.dot(v0+v1);
         decimal_t g = -3600*dp.dot(dp);
 
-        std::vector<decimal_t> ts = solve(a, b, c, d, e, f, g);
+        std::array<decimal_t, 6> ts;
+        int n_ts = solve_fast(a, b, c, d, e, f, g, ts);
 
         decimal_t t_bar = (state.pos - goal.pos).template lpNorm<Eigen::Infinity>() / v_max_;
-        ts.push_back(t_bar);
-        decimal_t min_cost = std::numeric_limits<decimal_t>::max();
-        for(auto t: ts) {
+        decimal_t min_cost = a*t_bar
+                           - c/t_bar
+                           - d/2/t_bar/t_bar
+                           - e/3/t_bar/t_bar/t_bar
+                           - f/4/t_bar/t_bar/t_bar/t_bar
+                           - g/5/t_bar/t_bar/t_bar/t_bar/t_bar;
+        for(int i = 0; i < n_ts; i++) {
+          auto t = ts[i];
           if(t < t_bar)
            continue;
           decimal_t cost = a*t-c/t-d/2/t/t-e/3/t/t/t-f/4/t/t/t/t-g/5/t/t/t/t/t;
-          if(cost < min_cost) 
+          if(cost < min_cost) {
             min_cost = cost;
+          }
         }
         return min_cost;
       }
@@ -174,7 +182,7 @@ class env_base
         decimal_t c4 = 0;
         decimal_t c5 = w_;
 
-        std::vector<decimal_t> ts = quartic(c5, c4, c3, c2, c1);
+        std::vector<decimal_t> ts = solve(c5, c4, c3, c2, c1);
         decimal_t t_bar = (state.pos - goal.pos).template lpNorm<Eigen::Infinity>() / v_max_;
         ts.push_back(t_bar);
 
@@ -201,7 +209,7 @@ class env_base
         decimal_t c4 = 0;
         decimal_t c5 = w_;
 
-        std::vector<decimal_t> ts = quartic(c5, c4, c3, c2, c1);
+        std::vector<decimal_t> ts = solve(c5, c4, c3, c2, c1);
         decimal_t t_bar = (state.pos - goal.pos).template lpNorm<Eigen::Infinity>() / v_max_;
         ts.push_back(t_bar);
 
@@ -242,24 +250,31 @@ class env_base
 
     ///Genegrate Key from state
     Key state_to_idx(const Waypoint<Dim>& state) const {
+      Key result = {0};
       const Veci<Dim> pi = round(state.pos, ds_);
-      if(state.use_pos && state.use_vel && !state.use_acc ) {
+      result[0] = pi(0);
+      result[1] = pi(1);
+      result[2] = pi(2);
+
+      if(state.use_vel) {
         const Veci<Dim> vi = round(state.vel, dv_);
-        return toString(pi) + toString(vi);
+        result[0 + 3] = vi(0);
+        result[1 + 3] = vi(1);
+        result[2 + 3] = vi(2);
       }
-      else if(state.use_pos && state.use_vel && state.use_acc && !state.use_jrk) {
-        const Veci<Dim> vi = round(state.vel, dv_);
+      if(state.use_acc) {
         const Veci<Dim> ai = round(state.acc, da_);
-        return toString(pi) + toString(vi) + toString(ai);
+        result[0 + 6] = ai(0);
+        result[1 + 6] = ai(1);
+        result[2 + 6] = ai(2);
       }
-      else if(state.use_pos && state.use_vel && state.use_acc && state.use_jrk) {
-        const Veci<Dim> vi = round(state.vel, dv_);
-        const Veci<Dim> ai = round(state.acc, da_);
+      if(state.use_jrk) {
         const Veci<Dim> ji = round(state.jrk, dj_);
-        return toString(pi) + toString(vi) + toString(ai) + toString(ji);
+        result[0 + 9] = ji(0);
+        result[1 + 9] = ji(1);
+        result[2 + 9] = ji(2);
       }
-      else 
-        return toString(pi);
+      return result;
     }
 
     ///Recover trajectory
@@ -447,5 +462,40 @@ class env_base
 };
 }
 
+namespace std {
+    template<> struct hash<MPL::Key>
+    {
+        typedef MPL::Key argument_type;
+        typedef std::size_t result_type;
+        result_type operator()(const argument_type& key) const noexcept
+        {
+            result_type hash = 0;
+            for (size_t i = 0; i < 12; i++) {
+                hash ^= std::hash<int>{}(key[i]) << i;
+            }
+            return hash;
+        }
+    };
+
+    template<> struct hash<std::pair<MPL::Key, MPL::Key>>
+    {
+        typedef std::pair<MPL::Key, MPL::Key> argument_type;
+        typedef std::size_t result_type;
+        result_type operator()(const argument_type& key) const noexcept
+        {
+            return std::hash<MPL::Key>{}(key.first)
+                 ^ std::hash<MPL::Key>{}(key.second);
+        }
+    };
+
+    inline ostream& operator<<(ostream& o, const array<int, 12>& a)
+    {
+        for (size_t i = 0; i < 11; i++) {
+            o << a[i] << ", ";
+        }
+        o << a[11];
+        return o;
+    }
+}
 
 #endif
