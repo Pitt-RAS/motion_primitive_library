@@ -6,5 +6,5 @@ var searchData=
   ['clear',['clear',['../classPolyTraj.html#aeef32c15c08d1cab7522dbfe5f68f479',1,'PolyTraj']]],
   ['coeff',['coeff',['../classPrimitive1D.html#a72caa53b8186c20682493f36933fea6e',1,'Primitive1D']]],
   ['coeffs',['coeffs',['../classPrimitive.html#af2a2433425bdea39a8a91cf7f03f5992',1,'Primitive']]],
-  ['cubic',['cubic',['../math_8h.html#af270499b7f6d6b2bb04528b3d46adec3',1,'math.cpp']]]
+  ['cubic',['cubic',['../math_8h.html#ae1855b61691896198c2b147862bd71fd',1,'math.cpp']]]
 ];

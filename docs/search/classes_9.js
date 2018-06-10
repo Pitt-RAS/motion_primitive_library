@@ -1,5 +1,4 @@
 var searchData=
 [
-  ['timer',['Timer',['../classTimer.html',1,'']]],
-  ['trajectory',['Trajectory',['../classTrajectory.html',1,'']]]
+  ['rpoly_5fstate',['RPoly_State',['../structRPoly__State.html',1,'']]]
 ];

@@ -18,6 +18,7 @@ var searchData=
   ['getnullset',['getNullSet',['../classMPBaseUtil.html#a47deccb53fb9c5360304fcea6445fc28',1,'MPBaseUtil']]],
   ['getopenset',['getOpenSet',['../classMPBaseUtil.html#a48215df4063c38d51d5846c6eeb60bdb',1,'MPBaseUtil']]],
   ['getorigin',['getOrigin',['../classMPL_1_1MapUtil.html#a564d3623381dbe49c5b2bed5390b13be',1,'MPL::MapUtil']]],
+  ['getprimitivestogoal',['getPrimitivesToGoal',['../classMPBaseUtil.html#ab561c271aedd60d1c016d54531acd9f1',1,'MPBaseUtil']]],
   ['getres',['getRes',['../classMPL_1_1MapUtil.html#a8c6fd7ec55607a4e209e0faa43f18383',1,'MPL::MapUtil']]],
   ['getsegst',['getSegsT',['../classTrajectory.html#a1904677017c57f5d557b7844e3a6393e',1,'Trajectory']]],
   ['getsubstatespace',['getSubStateSpace',['../classMPBaseUtil.html#a4ded970340a77190291bd94427947e9a',1,'MPBaseUtil::getSubStateSpace()'],['../structMPL_1_1StateSpace.html#a86fc56247c5f39249f673f546c795e17',1,'MPL::StateSpace::getSubStateSpace()']]],

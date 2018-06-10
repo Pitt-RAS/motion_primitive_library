@@ -1,0 +1,6 @@
+<map id="MPL::env_map::is_free" name="MPL::env_map::is_free">
+<area shape="rect" id="node2" href="$classPrimitive.html#a6c369ebe499544a832c88b6fc4ada0e4" title="Return max velocity along k&#45;th dimension. " alt="" coords="211,5,341,32"/>
+<area shape="rect" id="node3" href="$classPrimitive.html#a908ba5793fc0520602352b59358a34ea" title="Return duration. " alt="" coords="233,56,319,83"/>
+<area shape="rect" id="node4" href="$classPrimitive.html#a05f39d37c30257fe531ff264039d4bb8" title="Sample N states using uniformed time. " alt="" coords="215,107,337,133"/>
+<area shape="rect" id="node5" href="$classPrimitive.html#ad169f643f0556872f140f16a9ca73270" title="Return state at t. " alt="" coords="389,107,520,133"/>
+</map>
