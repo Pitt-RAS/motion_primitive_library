@@ -125,84 +125,111 @@ void MPBaseUtil<Dim>::setTol(decimal_t tol_dis, decimal_t tol_vel, decimal_t tol
 
 
 template <int Dim>
-vec_E<Primitive<Dim>> MPBaseUtil<Dim>::getPrimitivesToGoal() const { 
+vec_E<Primitive<Dim>> MPBaseUtil<Dim>::getPrimitivesToGoal() const {
   vec_E<Primitive<Dim>> prs;
-  if(ss_ptr_->best_child_.empty())
-    return prs;
+  if (ss_ptr_->best_child_.empty()) return prs;
 
   std::unordered_map<std::pair<Key, Key>, bool> added;
 
   auto currNode_ptr = ss_ptr_->best_child_.back();
   std::queue<StatePtr<Dim>> q;
   q.push(currNode_ptr);
-  while( !q.empty()) {
+  while (!q.empty()) {
     int size = q.size();
-    for(int i = 0; i < size; i++) {
-      currNode_ptr = q.front(); q.pop();
-      for(unsigned int j = 0; j < currNode_ptr->pred_hashkey.size(); j++) {
+    for (int i = 0; i < size; i++) {
+      currNode_ptr = q.front();
+      q.pop();
+      for (unsigned int j = 0; j < currNode_ptr->pred_hashkey.size(); j++) {
         Key pred_key = currNode_ptr->pred_hashkey[j];
-        std::pair<Key, Key> key_pair = std::make_pair(currNode_ptr->hashkey, pred_key);
-        if(added.count(key_pair) == 1 || std::isinf(currNode_ptr->pred_action_cost[j])) // skip the pred if the cost is inf
+        std::pair<Key, Key> key_pair =
+            std::make_pair(currNode_ptr->hashkey, pred_key);
+
+        // skip the pred if the cost is inf
+        if (added.count(key_pair) == 1 ||
+            std::isinf(currNode_ptr->pred_action_cost[j]))
           continue;
         q.push(ss_ptr_->hm_[pred_key]);
         added[key_pair] = true;
         int action_idx = currNode_ptr->pred_action_id[j];
-        Primitive<Dim> pr;
-        ENV_->forward_action( ss_ptr_->hm_[pred_key]->coord, action_idx, pr );
-        prs.push_back(pr);
+        // next primitive is direct to goal
+        if (action_idx == -1) {
+          ENV_->goal_node_.jrk = Vecf<Dim>::Zero();
+          decimal_t time_to_goal = ENV_->cal_heur_time(ss_ptr_->hm_[pred_key]->coord, ENV_->goal_node_);
+          Primitive<Dim> prim(ss_ptr_->hm_[pred_key]->coord, ENV_->goal_node_, time_to_goal);
+          prs.push_back(prim);
+        } else {
+          Primitive<Dim> pr;
+          ENV_->forward_action(ss_ptr_->hm_[pred_key]->coord, action_idx, pr);
+          prs.push_back(pr);
+        }
       }
     }
   }
 
-  if(planner_verbose_)
-    printf("number of states in hm: %zu, number of prs connet to the goal: %zu\n", 
+  if (planner_verbose_)
+    printf(
+        "number of states in hm: %zu, number of prs connet to the goal: %zu\n",
         ss_ptr_->hm_.size(), prs.size());
- 
+
   return prs;
 }
 
-
-
 template <int Dim>
-vec_E<Primitive<Dim>> MPBaseUtil<Dim>::getValidPrimitives() const { 
+vec_E<Primitive<Dim>> MPBaseUtil<Dim>::getValidPrimitives() const {
   vec_E<Primitive<Dim>> prs;
   for(const auto& it: ss_ptr_->hm_) {
    if(it.second && !it.second->pred_hashkey.empty()) {
       for(unsigned int i = 0; i < it.second->pred_hashkey.size(); i++) {
         Key key = it.second->pred_hashkey[i];
-        //if(!ss_ptr_->hm_[key] || std::isinf(it.second->pred_action_cost[i])) 
-        if(std::isinf(it.second->pred_action_cost[i])) 
+        //if(!ss_ptr_->hm_[key] || std::isinf(it.second->pred_action_cost[i]))
+        if(std::isinf(it.second->pred_action_cost[i]))
           continue;
-        Primitive<Dim> pr;
-        ENV_->forward_action( ss_ptr_->hm_[key]->coord, it.second->pred_action_id[i], pr );
-        prs.push_back(pr);
+        int action_id = it.second->pred_action_id[i];
+        if (action_id == -1) {
+          ENV_->goal_node_.jrk = Vecf<Dim>::Zero();
+          decimal_t time_to_goal = ENV_->cal_heur_time(ss_ptr_->hm_[key]->coord, ENV_->goal_node_);
+          Primitive<Dim> prim(ss_ptr_->hm_[key]->coord, ENV_->goal_node_, time_to_goal);
+          prs.push_back(prim);
+        } else {
+          Primitive<Dim> pr;
+          ENV_->forward_action( ss_ptr_->hm_[key]->coord, it.second->pred_action_id[i], pr );
+          prs.push_back(pr);
+        }
       }
     }
   }
-
   if(planner_verbose_)
-    printf("number of states in hm: %zu, number of valid prs: %zu\n", 
+    printf("number of states in hm: %zu, number of valid prs: %zu\n",
         ss_ptr_->hm_.size(), prs.size());
- 
+
   return prs;
 }
 
 template <int Dim>
-vec_E<Primitive<Dim>> MPBaseUtil<Dim>::getAllPrimitives() const { 
+vec_E<Primitive<Dim>> MPBaseUtil<Dim>::getAllPrimitives() const {
   vec_E<Primitive<Dim>> prs;
   for(const auto& it: ss_ptr_->hm_) {
     if(it.second && !it.second->pred_hashkey.empty()) {
       for(unsigned int i = 0; i < it.second->pred_hashkey.size(); i++) {
         Key key = it.second->pred_hashkey[i];
-        Primitive<Dim> pr;
-        ENV_->forward_action( ss_ptr_->hm_[key]->coord, it.second->pred_action_id[i], pr );
-        prs.push_back(pr);
+        int action_id = it.second->pred_action_id[i];
+
+        if (action_id == -1) {
+          ENV_->goal_node_.jrk = Vecf<Dim>::Zero();
+          decimal_t time_to_goal = ENV_->cal_heur_time(ss_ptr_->hm_[key]->coord, ENV_->goal_node_);
+          Primitive<Dim> prim(ss_ptr_->hm_[key]->coord, ENV_->goal_node_, time_to_goal);
+          prs.push_back(prim);
+        } else {
+          Primitive<Dim> pr;
+          ENV_->forward_action( ss_ptr_->hm_[key]->coord, it.second->pred_action_id[i], pr );
+          prs.push_back(pr);
+        }
       }
     }
   }
 
-  if(planner_verbose_) 
-    printf("number of states in hm: %zu, number of prs: %zu\n", 
+  if(planner_verbose_)
+    printf("number of states in hm: %zu, number of prs: %zu\n",
         ss_ptr_->hm_.size(), prs.size());
 
   return prs;
@@ -210,7 +237,7 @@ vec_E<Primitive<Dim>> MPBaseUtil<Dim>::getAllPrimitives() const {
 
 template <int Dim>
 vec_E<Waypoint<Dim>> MPBaseUtil<Dim>::getWs() const {
-  return ws_; 
+  return ws_;
 }
 
 template <int Dim>
@@ -309,8 +336,8 @@ bool MPBaseUtil<Dim>::plan(const Waypoint<Dim> &start, const Waypoint<Dim> &goal
 
   std::unique_ptr<MPL::GraphSearch<Dim>> planner_ptr(new MPL::GraphSearch<Dim>(planner_verbose_));
 
-  // If use A*, reset the state space 
-  if(!use_lpastar_) 
+  // If use A*, reset the state space
+  if(!use_lpastar_)
     ss_ptr_.reset(new MPL::StateSpace<Dim>(epsilon_));
   else {
     // If use LPA*, reset the state space only at the initial planning

@@ -34,9 +34,9 @@ namespace MPL {
     ///Check if state hit the goal region, use L-1 norm
     bool is_goal(const Waypoint<Dim>& state) const {
       bool goaled = (state.pos - this->goal_node_.pos).template lpNorm<Eigen::Infinity>() <= this->tol_dis;
-      if(goaled && this->goal_node_.use_vel && this->tol_vel > 0) 
+      if(goaled && this->goal_node_.use_vel && this->tol_vel > 0)
         goaled = (state.vel - this->goal_node_.vel).template lpNorm<Eigen::Infinity>() <= this->tol_vel;
-      if(goaled && this->goal_node_.use_acc && this->tol_acc > 0) 
+      if(goaled && this->goal_node_.use_acc && this->tol_acc > 0)
         goaled = (state.acc - this->goal_node_.acc).template lpNorm<Eigen::Infinity>() <= this->tol_acc;
       if(goaled) {
         auto pns = map_util_->rayTrace(state.pos, this->goal_node_.pos);
@@ -47,8 +47,6 @@ namespace MPL {
       }
       return goaled;
     }
-
-
 
     ///Check if a point is in free space
     bool is_free(const Vecf<Dim>& pt) const {
@@ -62,7 +60,7 @@ namespace MPL {
      */
     bool is_free(const Primitive<Dim>& pr) const {
       decimal_t max_v = 0;
-      if(Dim == 2) 
+      if(Dim == 2)
         max_v = std::max(pr.max_vel(0), pr.max_vel(1));
       else if(Dim == 3)
         max_v = std::max(std::max(pr.max_vel(0), pr.max_vel(1)), pr.max_vel(2));
@@ -89,7 +87,7 @@ namespace MPL {
      * When goal is outside, extra step is needed for finding optimal trajectory.
      * Only return the primitive satisfies valid dynamic constriants (include the one hits obstacles).
      */
-    void get_succ( const Waypoint<Dim>& curr, 
+    void get_succ( const Waypoint<Dim>& curr,
         vec_E<Waypoint<Dim>>& succ,
         std::vector<Key>& succ_idx,
         std::vector<decimal_t>& succ_cost,
@@ -113,11 +111,11 @@ namespace MPL {
         //if (!is_free(pr)) continue;
 
         Waypoint<Dim> tn = pr.evaluate(this->dt_);
-        if(tn == curr) 
+        if(tn == curr)
           continue;
 
-        if(pr.valid_vel(this->v_max_) && 
-           pr.valid_acc(this->a_max_) && 
+        if(pr.valid_vel(this->v_max_) &&
+           pr.valid_acc(this->a_max_) &&
            pr.valid_jrk(this->j_max_)) {
           tn.use_pos = curr.use_pos;
           tn.use_vel = curr.use_vel;
@@ -126,17 +124,46 @@ namespace MPL {
 
           succ.push_back(tn);
           succ_idx.push_back(this->state_to_idx(tn));
-          decimal_t cost = is_free(pr) ? pr.J(this->wi_) + 
+          decimal_t cost = is_free(pr) ? pr.J(this->wi_) +
             this->w_*this->dt_: std::numeric_limits<decimal_t>::infinity();
           succ_cost.push_back(cost);
           action_idx.push_back(i);
         }
       }
 
+      if(curr.use_pos && !curr.use_vel && !curr.use_acc && !curr.use_jrk &&
+              curr.use_pos && !curr.use_vel && !curr.use_acc && !curr.use_jrk) {
+        printf("Do not use direct to goal");
+      } else {
+
+        Waypoint<Dim> goal = this->goal_node_;
+        goal.jrk = Vecf<Dim>::Zero();
+
+        decimal_t time_to_goal = env_base<Dim>::cal_heur_time(curr, goal);
+        Primitive<Dim> prim(curr, goal, time_to_goal);
+
+        Waypoint<Dim> tn = goal;
+
+        if(tn != curr) {
+          if(prim.valid_vel(this->v_max_) &&
+             prim.valid_acc(this->a_max_) &&
+             prim.valid_jrk(this->j_max_)) {
+            tn.use_pos = curr.use_pos;
+            tn.use_vel = curr.use_vel;
+            tn.use_acc = curr.use_acc;
+            tn.use_jrk = curr.use_jrk;
+
+            succ.push_back(tn);
+            succ_idx.push_back(this->state_to_idx(tn));
+            decimal_t cost = is_free(prim) ? prim.J(this->wi_) +
+              this->w_*this->dt_: std::numeric_limits<decimal_t>::infinity();
+            succ_cost.push_back(cost);
+            action_idx.push_back(-1);
+          }
+        }
+      }
     }
-
   };
-
 }
 
 #endif

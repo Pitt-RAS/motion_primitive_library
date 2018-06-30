@@ -12,7 +12,7 @@
 #include <motion_primitive_library/primitive/trajectory.h>
 
 namespace MPL {
-  
+
 /**
  * @brief Key for node
  *
@@ -34,21 +34,21 @@ class env_base
     ///Check if state hit the goal region, use L-1 norm
     virtual bool is_goal(const Waypoint<Dim>& state) const {
       bool goaled = (state.pos - goal_node_.pos).template lpNorm<Eigen::Infinity>() <= tol_dis;
-      if(goaled && goal_node_.use_vel && tol_vel > 0) 
+      if(goaled && goal_node_.use_vel && tol_vel > 0)
         goaled = (state.vel - goal_node_.vel).template lpNorm<Eigen::Infinity>() <= tol_vel;
-      if(goaled && goal_node_.use_acc && tol_acc > 0) 
+      if(goaled && goal_node_.use_acc && tol_acc > 0)
         goaled = (state.acc - goal_node_.acc).template lpNorm<Eigen::Infinity>() <= tol_acc;
      return goaled;
     }
 
     /**
-     * @brief Heuristic function 
+     * @brief Heuristic function
      * @param Waypoint current state coord
      * @param t current state time
      */
     decimal_t get_heur(const Waypoint<Dim>& state, decimal_t t) const
     {
-      if(goal_node_ == state) 
+      if(goal_node_ == state)
         return 0;
       Waypoint<Dim> goal_node = goal_node_;
       t += alpha_ * dt_;
@@ -72,7 +72,7 @@ class env_base
       //If in acceleration control space
       if(state.use_pos && state.use_vel && state.use_acc && !state.use_jrk &&
          goal.use_pos && goal.use_vel && goal.use_acc && !goal.use_jrk) {
- 
+
         const Vecf<Dim> dp = goal.pos - state.pos;
         const Vecf<Dim> v0 = state.vel;
         const Vecf<Dim> v1 = goal.vel;
@@ -163,7 +163,7 @@ class env_base
           if(t < t_bar)
             continue;
           decimal_t cost = a*t-c/t-d/2/t/t-e/3/t/t/t-f/4/t/t/t/t-g/5/t/t/t/t/t;
-          if(cost < min_cost) 
+          if(cost < min_cost)
             min_cost = cost;
         }
         return min_cost;
@@ -224,12 +224,192 @@ class env_base
 
         return cost;
       }
- 
+
       else if(state.use_pos && !state.use_vel && !state.use_acc && !state.use_jrk &&
               goal.use_pos && !goal.use_vel && !goal.use_acc && !goal.use_jrk)
         return (w_ + 1) * (state.pos - goal.pos).norm();
       else
         return w_*(state.pos - goal.pos).norm() / v_max_;
+    }
+
+
+    /// calculate the time from state to goal
+    decimal_t cal_heur_time(const Waypoint<Dim>& state, const Waypoint<Dim>& goal) const
+    {
+      if(state.use_pos && state.use_vel && state.use_acc && !state.use_jrk &&
+         goal.use_pos && goal.use_vel && goal.use_acc && !goal.use_jrk) {
+
+        const Vecf<Dim> dp = goal.pos - state.pos;
+        const Vecf<Dim> v0 = state.vel;
+        const Vecf<Dim> v1 = goal.vel;
+        const Vecf<Dim> a0 = state.acc;
+        const Vecf<Dim> a1 = goal.acc;
+        decimal_t a = w_;
+        decimal_t b = 0;
+        decimal_t c = -9*a0.dot(a0)+6*a0.dot(a1)-9*a1.dot(a1);
+        decimal_t d = -144*a0.dot(v0)-96*a0.dot(v1)+96*a1.dot(v0)+144*a1.dot(v1);
+        decimal_t e = 360*(a0-a1).dot(dp)-576*v0.dot(v0)-1008*v0.dot(v1)-576*v1.dot(v1);
+        decimal_t f = 2880*dp.dot(v0+v1);
+        decimal_t g = -3600*dp.dot(dp);
+
+        std::array<decimal_t, 6> ts;
+        int n_ts = solve_fast(a, b, c, d, e, f, g, ts);
+
+        decimal_t t_bar = (state.pos - goal.pos).template lpNorm<Eigen::Infinity>() / v_max_;
+        decimal_t min_cost = a*t_bar
+                           - c/t_bar
+                           - d/2/t_bar/t_bar
+                           - e/3/t_bar/t_bar/t_bar
+                           - f/4/t_bar/t_bar/t_bar/t_bar
+                           - g/5/t_bar/t_bar/t_bar/t_bar/t_bar;
+
+        decimal_t min_time = t_bar;
+
+        for(int i = 0; i < n_ts; i++) {
+          auto t = ts[i];
+          if(t < t_bar) {
+           continue;
+          }
+          decimal_t cost = a*t-c/t-d/2/t/t-e/3/t/t/t-f/4/t/t/t/t-g/5/t/t/t/t/t;
+          if(cost < min_cost) {
+            min_cost = cost;
+            min_time = t;
+          }
+        }
+        return min_time;
+      }
+
+      else if(state.use_pos && state.use_vel && state.use_acc && !state.use_jrk &&
+         goal.use_pos && goal.use_vel && !goal.use_acc && !goal.use_jrk) {
+        const Vecf<Dim> dp = goal.pos - state.pos;
+        const Vecf<Dim> v0 = state.vel;
+        const Vecf<Dim> v1 = goal.vel;
+        const Vecf<Dim> a0 = state.acc;
+
+        decimal_t a = w_;
+        decimal_t b = 0;
+        decimal_t c = -8*a0.dot(a0);
+        decimal_t d = -112*a0.dot(v0)-48*a0.dot(v1);
+        decimal_t e = 240*a0.dot(dp)-384*v0.dot(v0)-432*v0.dot(v1)-144*v1.dot(v1);
+        decimal_t f = dp.dot(1600*v0+960*v1);
+        decimal_t g = -1600*dp.dot(dp);
+
+        std::vector<decimal_t> ts = solve(a, b, c, d, e, f, g);
+
+        decimal_t t_bar = (state.pos - goal.pos).template lpNorm<Eigen::Infinity>() / v_max_;
+        ts.push_back(t_bar);
+        decimal_t min_cost = std::numeric_limits<decimal_t>::max();
+        decimal_t min_time = t_bar;
+        for(auto t: ts) {
+          if(t < t_bar)
+            continue;
+          decimal_t cost = a*t-c/t-d/2/t/t-e/3/t/t/t-f/4/t/t/t/t-g/5/t/t/t/t/t;
+          if(cost < min_cost){
+            min_cost = cost;
+            min_time = t;
+          }
+        }
+        return min_time;
+      }
+
+      else if(state.use_pos && state.use_vel && state.use_acc && !state.use_jrk &&
+         goal.use_pos && !goal.use_vel && !goal.use_acc && !goal.use_jrk) {
+        const Vecf<Dim> dp = goal.pos - state.pos;
+        const Vecf<Dim> v0 = state.vel;
+        const Vecf<Dim> a0 = state.acc;
+
+        decimal_t a = w_;
+        decimal_t b = 0;
+        decimal_t c = -5*a0.dot(a0);
+        decimal_t d = -40*a0.dot(v0);
+        decimal_t e = 60*a0.dot(dp)-60*v0.dot(v0);
+        decimal_t f = 160*dp.dot(v0);
+        decimal_t g = -100*dp.dot(dp);
+
+        std::vector<decimal_t> ts = solve(a, b, c, d, e, f, g);
+
+        decimal_t t_bar = (state.pos - goal.pos).template lpNorm<Eigen::Infinity>() / v_max_;
+        ts.push_back(t_bar);
+
+        decimal_t min_cost = std::numeric_limits<decimal_t>::max();
+        decimal_t min_time = t_bar;
+        for(auto t: ts) {
+          if(t < t_bar)
+            continue;
+          decimal_t cost = a*t-c/t-d/2/t/t-e/3/t/t/t-f/4/t/t/t/t-g/5/t/t/t/t/t;
+          if(cost < min_cost){
+            min_cost = cost;
+            min_time = t;
+          }
+        }
+        return min_time;
+      }
+
+      else if(state.use_pos && state.use_vel && !state.use_acc && !state.use_jrk &&
+              goal.use_pos && goal.use_vel && !goal.use_acc && !goal.use_jrk) {
+        const Vecf<Dim> dp = goal.pos - state.pos;
+        const Vecf<Dim> v0 = state.vel;
+        const Vecf<Dim> v1 = goal.vel;
+
+        decimal_t c1 = -36*dp.dot(dp);
+        decimal_t c2 = 24*(v0+v1).dot(dp);
+        decimal_t c3 = -4*(v0.dot(v0)+v0.dot(v1)+v1.dot(v1));
+        decimal_t c4 = 0;
+        decimal_t c5 = w_;
+
+        std::vector<decimal_t> ts = solve(c5, c4, c3, c2, c1);
+        decimal_t t_bar = (state.pos - goal.pos).template lpNorm<Eigen::Infinity>() / v_max_;
+        ts.push_back(t_bar);
+
+        decimal_t cost = std::numeric_limits<decimal_t>::max();
+        decimal_t min_time = t_bar;
+        for(auto t: ts) {
+          if(t < t_bar)
+            continue;
+          decimal_t c = -c1/3/t/t/t-c2/2/t/t-c3/t+w_*t;
+          if(c < cost){
+            cost = c;
+            min_time = t;
+          }
+        }
+        return min_time;
+      }
+
+      else if(state.use_pos && state.use_vel && !state.use_acc && !state.use_jrk &&
+          goal.use_pos && !goal.use_vel && !goal.use_acc && !goal.use_jrk) {
+        const Vecf<Dim> dp = goal.pos - state.pos;
+        const Vecf<Dim> v0 = state.vel;
+
+        decimal_t c1 = -9*dp.dot(dp);
+        decimal_t c2 = 12*v0.dot(dp);
+        decimal_t c3 = -3*v0.dot(v0);
+        decimal_t c4 = 0;
+        decimal_t c5 = w_;
+
+        std::vector<decimal_t> ts = solve(c5, c4, c3, c2, c1);
+        decimal_t t_bar = (state.pos - goal.pos).template lpNorm<Eigen::Infinity>() / v_max_;
+        ts.push_back(t_bar);
+
+        decimal_t cost = std::numeric_limits<decimal_t>::max();
+        decimal_t min_time = t_bar;
+        for(auto t: ts) {
+          if(t < t_bar)
+            continue;
+          decimal_t c = -c1/3/t/t/t-c2/2/t/t-c3/t+w_*t;
+          if(c < cost){
+            cost = c;
+            min_time = t;
+          }
+        }
+
+        return min_time;
+      }
+
+      else if(state.use_pos && !state.use_vel && !state.use_acc && !state.use_jrk &&
+              goal.use_pos && !goal.use_vel && !goal.use_acc && !goal.use_jrk)
+        throw std::runtime_error("Unsupported configuration for time calculation");
+      else
+        throw std::runtime_error("Unknown configuration for time calculation");
     }
 
     ///Replace the original cast function
@@ -308,12 +488,12 @@ class env_base
       u_max_ = u;
     }
 
-    ///Set max amount of time step to explore 
+    ///Set max amount of time step to explore
     void set_t_max(decimal_t t) {
       t_max_ = t;
     }
 
-    ///Set prior trajectory 
+    ///Set prior trajectory
     void set_prior_trajectory(const Trajectory<Dim>& traj) {
       prior_traj_ = traj;
     }
@@ -380,15 +560,15 @@ class env_base
     }
 
     ///Check if a point is in free space
-    virtual bool is_free(const Vecf<Dim>& pt) const { 
+    virtual bool is_free(const Vecf<Dim>& pt) const {
       printf("Used Null is_free() for pt\n");
-      return true; 
+      return true;
     }
 
     ///Check if a primitive is in free space
-    virtual bool is_free(const Primitive<Dim>& pr) const { 
+    virtual bool is_free(const Primitive<Dim>& pr) const {
       printf("Used Null is_free() for pr\n");
-      return true; 
+      return true;
     }
 
     ///Retrieve dt
@@ -404,7 +584,7 @@ class env_base
      * @param succ_cost The array stores cost along valid edges
      * @param action_idx The array stores corresponding idx of control for each successor
      */
-    virtual void get_succ( const Waypoint<Dim>& curr, 
+    virtual void get_succ( const Waypoint<Dim>& curr,
         vec_E<Waypoint<Dim>>& succ,
         std::vector<Key>& succ_idx,
         std::vector<decimal_t>& succ_cost,
@@ -418,12 +598,11 @@ class env_base
     }
 
     ///weight of time cost
-    decimal_t w_ = 10; 
+    decimal_t w_ = 10;
     ///order of derivatives for effort
-    int wi_; 
+    int wi_;
     ///heuristic time offset
     int alpha_ = 0;
-
     ///tolerance of position for goal region
     decimal_t tol_dis = 0.0;
     ///tolerance of velocity for goal region, 0 means no tolerance

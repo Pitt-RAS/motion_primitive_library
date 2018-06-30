@@ -100,23 +100,23 @@ bool PolySolver<Dim>::solve(const vec_E<Waypoint<Dim>>& waypoints,
   Df.row(1) = waypoints[0].vel.transpose();
   if (N_/2 > 2)
     Df.row(2) = waypoints[0].acc.transpose();
-  if (N_/2 > 3) 
+  if (N_/2 > 3)
     Df.row(3) = waypoints[0].jrk.transpose();
-  for (unsigned int i = 4; i < N_ / 2; i++) 
+  for (unsigned int i = 4; i < N_ / 2; i++)
     Df.row(i) = Vecf<Dim>::Zero().transpose();
 
   // Middle waypoints
-  for (unsigned int i = 1; i < num_waypoints - 1; i++) 
+  for (unsigned int i = 1; i < num_waypoints - 1; i++)
     Df.row((N_ / 2) - 1 + i) = waypoints[i].pos.transpose();
 
   // End point
   int end = num_waypoints + 1;
   Df.row(end) = waypoints[num_waypoints - 1].pos.transpose();
   Df.row(end+1) = waypoints[num_waypoints - 1].vel.transpose();
-  if (N_ / 2 > 2) 
+  if (N_ / 2 > 2)
     Df.row(end+2) = waypoints[num_waypoints - 1].acc.transpose();
-  if (N_ / 2 > 3) 
-    Df.row(end+3) = waypoints[num_waypoints - 1].jrk.transpose();
+  if (N_ / 2 > 3)
+    Df.row(end+3) = Vecf<Dim>::Zero().transpose(); //waypoints[num_waypoints - 1].jrk.transpose();
   for (unsigned int i = 4; i < N_ / 2; i++) {
     Df.row(end+i) = Vecf<Dim>::Zero().transpose();
     // Df.row((N_ / 2) + (num_waypoints - 2) + i) = end_vel_.transpose();

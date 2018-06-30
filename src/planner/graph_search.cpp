@@ -1,7 +1,7 @@
 #include <motion_primitive_library/planner/graph_search.h>
 #include <motion_primitive_library/planner/env_base.h>
 #include <motion_primitive_library/primitive/primitive_util.h>
-#include <chrono>                     
+#include <chrono>
 
 using namespace MPL;
 
@@ -44,9 +44,18 @@ Trajectory<Dim> GraphSearch<Dim>::recoverTraj(StatePtr<Dim> currNode_ptr, std::s
       Key key = currNode_ptr->pred_hashkey[min_id];
       int action_idx = currNode_ptr->pred_action_id[min_id];
       currNode_ptr = ss_ptr->hm_[key];
-      Primitive<Dim> pr;
-      ENV->forward_action( currNode_ptr->coord, action_idx, pr );
-      prs.push_back(pr);
+
+      if (action_idx == -1) {
+        ENV->goal_node_.jrk = Vecf<Dim>::Zero();
+        decimal_t time_to_goal = ENV->cal_heur_time(currNode_ptr->coord, ENV->goal_node_);
+        Primitive<Dim> prim(currNode_ptr->coord, ENV->goal_node_, time_to_goal);
+        prs.push_back(prim);
+      } else {
+        Primitive<Dim> pr;
+        ENV->forward_action( currNode_ptr->coord, action_idx, pr );
+        prs.push_back(pr);
+      }
+
       if(verbose_) {
         //std::cout << "parent t: " << currNode_ptr->t << " key: " << key << std::endl;
         //printf("Take action id: %d,  action cost: J: [%f, %f, %f]\n", action_idx, pr.J(0), pr.J(1), pr.J(2));
@@ -81,17 +90,17 @@ Trajectory<Dim> GraphSearch<Dim>::recoverTraj(StatePtr<Dim> currNode_ptr, std::s
 /********************************* Astar  **************************************/
 template <int Dim>
 decimal_t GraphSearch<Dim>::Astar(const Waypoint<Dim>& start_coord, Key start_key,
-    const std::shared_ptr<env_base<Dim>>& ENV, std::shared_ptr<StateSpace<Dim>>& ss_ptr, 
+    const std::shared_ptr<env_base<Dim>>& ENV, std::shared_ptr<StateSpace<Dim>>& ss_ptr,
     Trajectory<Dim>& traj, int max_expand, decimal_t max_t)
 {
   // Check if done
   if( ENV->is_goal(start_coord) )
     return 0;
-  
+
   // Initialize start node
   StatePtr<Dim> currNode_ptr = ss_ptr->hm_[start_key];
   if(ss_ptr->pq_.empty()) {
-    if(verbose_) 
+    if(verbose_)
       printf(ANSI_COLOR_GREEN "Start from new node!\n" ANSI_COLOR_RESET);
     currNode_ptr = std::make_shared<State<Dim>>(State<Dim>(start_key, start_coord));
     currNode_ptr->t = 0;
@@ -109,8 +118,8 @@ decimal_t GraphSearch<Dim>::Astar(const Waypoint<Dim>& start_coord, Key start_ke
   {
     expand_iteration++;
     // get element with smallest cost
-    currNode_ptr = ss_ptr->pq_.top().second;     
-    ss_ptr->pq_.pop(); 
+    currNode_ptr = ss_ptr->pq_.top().second;
+    ss_ptr->pq_.pop();
     currNode_ptr->iterationclosed = true; // Add to closed list
 
     // Get successors
@@ -127,14 +136,14 @@ decimal_t GraphSearch<Dim>::Astar(const Waypoint<Dim>& start_coord, Key start_ke
       // If the primitive is occupied, skip
       if(std::isinf(succ_cost[s]))
         continue;
- 
+
       // Get child
       StatePtr<Dim>& succNode_ptr = ss_ptr->hm_[ succ_key[s] ];
       if( !succNode_ptr )
       {
         succNode_ptr = std::make_shared<State<Dim>>(State<Dim>(succ_key[s], succ_coord[s]) );
         succNode_ptr->t = currNode_ptr->t + ENV->dt_;
-        succNode_ptr->h = ENV->get_heur( succNode_ptr->coord, succNode_ptr->t); 
+        succNode_ptr->h = ENV->get_heur( succNode_ptr->coord, succNode_ptr->t);
         /*
          * Comment this block if build multiple connected graph
         succNode_ptr->pred_hashkey.push_back(currNode_ptr->hashkey);
@@ -191,15 +200,15 @@ decimal_t GraphSearch<Dim>::Astar(const Waypoint<Dim>& start_coord, Key start_ke
 	  succNode_ptr->iterationopened = true;
 	}
       }
-    } 
+    }
 
     // If goal reached, abort!
-    if(ENV->is_goal(currNode_ptr->coord)) 
+    if(ENV->is_goal(currNode_ptr->coord))
       break;
 
     // If maximum time reached, abort!
     if(max_t > 0 && currNode_ptr->t >= max_t && !std::isinf(currNode_ptr->g)) {
-      if(verbose_) 
+      if(verbose_)
         printf(ANSI_COLOR_GREEN "MaxExpandTime [%f] Reached!!!!!!\n\n" ANSI_COLOR_RESET, max_t);
       break;
     }
@@ -228,7 +237,7 @@ decimal_t GraphSearch<Dim>::Astar(const Waypoint<Dim>& start_coord, Key start_ke
     if(verbose_)
       printf(ANSI_COLOR_GREEN "Reached Goal !!!!!!\n\n" ANSI_COLOR_RESET);
   }
- 
+
 
   ss_ptr->expand_iteration_ = expand_iteration;
   traj = recoverTraj(currNode_ptr, ss_ptr, ENV, start_key);
@@ -237,8 +246,8 @@ decimal_t GraphSearch<Dim>::Astar(const Waypoint<Dim>& start_coord, Key start_ke
 
 /********************************* LPAstar  **************************************/
 template <int Dim>
-decimal_t GraphSearch<Dim>::LPAstar(const Waypoint<Dim>& start_coord, Key start_key, 
-    const std::shared_ptr<env_base<Dim>>& ENV, std::shared_ptr<StateSpace<Dim>>& ss_ptr, 
+decimal_t GraphSearch<Dim>::LPAstar(const Waypoint<Dim>& start_coord, Key start_key,
+    const std::shared_ptr<env_base<Dim>>& ENV, std::shared_ptr<StateSpace<Dim>>& ss_ptr,
     Trajectory<Dim>& traj, int max_expand, decimal_t max_t)
 {
   // Check if done
@@ -278,12 +287,12 @@ decimal_t GraphSearch<Dim>::LPAstar(const Waypoint<Dim>& start_coord, Key start_
   {
     expand_iteration++;
     // Get element with smallest cost
-    currNode_ptr = ss_ptr->pq_.top().second;     
-    ss_ptr->pq_.pop(); 
+    currNode_ptr = ss_ptr->pq_.top().second;
+    ss_ptr->pq_.pop();
     currNode_ptr->iterationclosed = true; // Add to closed list
 
 
-    if(currNode_ptr->g > currNode_ptr->rhs) 
+    if(currNode_ptr->g > currNode_ptr->rhs)
       currNode_ptr->g = currNode_ptr->rhs;
     else {
       currNode_ptr->g = std::numeric_limits<decimal_t>::infinity();
@@ -313,7 +322,7 @@ decimal_t GraphSearch<Dim>::LPAstar(const Waypoint<Dim>& start_coord, Key start_
       StatePtr<Dim>& succNode_ptr = ss_ptr->hm_[ succ_key[s] ];
       if( !(succNode_ptr) ) {
         succNode_ptr = std::make_shared<State<Dim>>(State<Dim>(succ_key[s], succ_coord[s]) );
-        succNode_ptr->h = ENV->get_heur(succNode_ptr->coord, currNode_ptr->t + ENV->dt_);   // compute heuristic        
+        succNode_ptr->h = ENV->get_heur(succNode_ptr->coord, currNode_ptr->t + ENV->dt_);   // compute heuristic
       }
 
       // store the hashkey
@@ -341,7 +350,7 @@ decimal_t GraphSearch<Dim>::LPAstar(const Waypoint<Dim>& start_coord, Key start_
     }
 
     // If goal reached or maximum time reached, terminate!
-    if(ENV->is_goal(currNode_ptr->coord) || (max_t > 0 && currNode_ptr->t == max_t) ) 
+    if(ENV->is_goal(currNode_ptr->coord) || (max_t > 0 && currNode_ptr->t == max_t) )
       goalNode_ptr = currNode_ptr;
 
     // If maximum expansion reached, abort!
@@ -359,12 +368,12 @@ decimal_t GraphSearch<Dim>::LPAstar(const Waypoint<Dim>& start_coord, Key start_
     }
   }
 
- 
+
   //***** Report value of goal
   if(verbose_) {
-    printf(ANSI_COLOR_GREEN "goalNode fval: %f, g: %f, rhs: %f!\n" ANSI_COLOR_RESET, 
+    printf(ANSI_COLOR_GREEN "goalNode fval: %f, g: %f, rhs: %f!\n" ANSI_COLOR_RESET,
         ss_ptr->calculateKey(goalNode_ptr), goalNode_ptr->g, goalNode_ptr->rhs);
-   // printf(ANSI_COLOR_GREEN "currNode fval: %f, g: %f, rhs: %f!\n" ANSI_COLOR_RESET, 
+   // printf(ANSI_COLOR_GREEN "currNode fval: %f, g: %f, rhs: %f!\n" ANSI_COLOR_RESET,
    //     ss_ptr->calculateKey(currNode_ptr), currNode_ptr->g, currNode_ptr->rhs);
     printf(ANSI_COLOR_GREEN "Expand [%d] nodes!\n" ANSI_COLOR_RESET, expand_iteration);
   }
@@ -372,16 +381,16 @@ decimal_t GraphSearch<Dim>::LPAstar(const Waypoint<Dim>& start_coord, Key start_
 
   //****** Check if the goal is reached, if reached, set the flag to be True
   if(verbose_) {
-    if(ENV->is_goal(goalNode_ptr->coord)) 
+    if(ENV->is_goal(goalNode_ptr->coord))
       printf(ANSI_COLOR_GREEN "Reached Goal !!!!!!\n\n" ANSI_COLOR_RESET);
-    else 
+    else
       printf(ANSI_COLOR_GREEN "MaxExpandTime [%f] Reached!!!!!!\n\n" ANSI_COLOR_RESET, goalNode_ptr->t);
   }
 
   // auto start = std::chrono::high_resolution_clock::now();
   //****** Recover trajectory
   traj = recoverTraj(goalNode_ptr, ss_ptr, ENV, start_key);
-  
+
   //std::chrono::duration<decimal_t> elapsed_seconds = std::chrono::high_resolution_clock::now() - start;
   //printf("time for recovering: %f, expand: %d\n", elapsed_seconds.count(), expand_iteration);
 
