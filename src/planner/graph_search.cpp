@@ -2,6 +2,7 @@
 #include <motion_primitive_library/planner/env_base.h>
 #include <motion_primitive_library/primitive/primitive_util.h>
 #include <chrono>
+#include <ros/ros.h>
 
 using namespace MPL;
 
@@ -114,7 +115,7 @@ decimal_t GraphSearch<Dim>::Astar(const Waypoint<Dim>& start_coord, Key start_ke
   }
 
   int expand_iteration = 0;
-  while(true)
+  while (ros::ok())
   {
     expand_iteration++;
     // get element with smallest cost
